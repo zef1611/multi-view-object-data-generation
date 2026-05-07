@@ -1,0 +1,8 @@
+{
+  "overlap":               [0.05, 0.40],
+  "min_trans_m":           1.0,
+  "min_rot_deg":           20.0,
+  "max_elev_deg":          60.0,
+  "min_azimuth_sep_deg":   30.0,
+  "bucket_hysteresis_deg": 10.0
+}

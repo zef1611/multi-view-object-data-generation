@@ -1,0 +1,4 @@
+{
+  "min_frame_gap_bonus_by_source": {"scannet": 0, "scannet++": 0, "matterport": 0, "unknown": 0},
+  "median_depth_ratio_min": 1.3
+}

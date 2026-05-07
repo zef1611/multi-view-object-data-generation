@@ -1,0 +1,32 @@
+Your task is to detect and label all **clear and unambiguous** whole objects visible in the image.
+
+The goal is to produce object names that are useful for detection, while also assigning a stable canonical category for later normalization across images or views.
+
+Guidelines:
+- Only identify **whole, countable objects**. Do NOT identify object parts, regions, handles, surfaces, or materials.
+- Only include objects that are clear, visible, and physically distinct.
+- For each detected object, provide:
+  1. "object": the most natural specific object name visible in the image
+  2. "canonical": a more general, stable category name for that object
+- The "object" field may use a specific subtype if it is visually clear, such as "office chair" or "folding chair".
+- The "canonical" field must map subtype variants to a shared general category, such as "chair".
+- Prefer short noun phrases.
+- Do NOT include colors, materials, sizes, or subjective adjectives unless they are necessary for the object subtype.
+- If the subtype is unclear, use the same word for both "object" and "canonical".
+- For identical objects, repeat entries according to their actual count in the image, but never list more than four instances of the same kind.
+- Only include clear and unambiguous objects.
+
+Output format:
+Return the final result as a JSON array only, with no additional explanations or text.
+
+Each entry must have:
+- "object": string — the specific visible object name
+- "canonical": string — the normalized general category
+
+Example output:
+[
+  { "object": "office chair", "canonical": "chair" },
+  { "object": "folding chair", "canonical": "chair" },
+  { "object": "water bottle", "canonical": "bottle" },
+  { "object": "file cabinet", "canonical": "cabinet" }
+]

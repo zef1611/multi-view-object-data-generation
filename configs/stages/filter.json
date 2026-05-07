@@ -1,0 +1,8 @@
+{
+  "_comment": "Defaults for `python -m cli filter`. The model name is a key in models/registry.py::MODELS; vllm_concurrency=null means use spec.recommended_concurrency. n_votes>1 enables majority-vote filtering: every run is persisted under cache/filter/<spec>__voteN/, with the top-level usable verdict precomputed at write time (threshold = ceil(N/2)).",
+
+  "model": "qwen3vl-235B",
+  "vllm_concurrency": null,
+  "n_votes": 1,
+  "vote_temperature": 0.7
+}

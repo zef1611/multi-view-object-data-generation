@@ -1,0 +1,7 @@
+{
+  "_comment": "Defaults for `python -m cli verify`. The verifier model must be a vllm-backed spec with images_per_prompt>=2 (operational default: qwen3vl-235B-pair). verify_concurrency=null = spec.recommended_concurrency.",
+
+  "model": "qwen3vl-235B-pair",
+  "verify_concurrency": null,
+  "write_verified": true
+}

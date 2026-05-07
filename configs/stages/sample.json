@@ -1,0 +1,16 @@
+{
+  "_comment": "Defaults for `python -m cli sample`. Override any key on the CLI (--frame-stride 25 etc.) — flag wins over file. `sampling` selects the sampler family; only the matching subset of knobs takes effect (adaptive uses min_translation_m / min_rotation_deg; stride uses frame_stride / min_keyframes; cosmic uses everything plus its own knobs).",
+
+  "sampling": "stride",
+  "limit_frames": 0,
+
+  "min_translation_m": 0.20,
+  "min_rotation_deg":  15.0,
+
+  "frame_stride":  50,
+  "min_keyframes": 30,
+
+  "cosmic_base_sampling":      "stride",
+  "cosmic_union_coverage_min":  0.3,
+  "cosmic_yaw_diff_min_deg":   30.0
+}

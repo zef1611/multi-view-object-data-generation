@@ -1,0 +1,18 @@
+{
+  "_comment": "Defaults for `python -m cli pair_gate`. Inherits sampling knobs (must match what `cli sample` used; pair_gate re-derives the keyframe set from the input). Pair-gate is pure pose/frustum gating — the quality filter runs in Phase 3 (after pair-gate) and post-culls pairs there.",
+
+  "sampling": "stride",
+  "limit_frames": 0,
+
+  "min_translation_m": 0.20,
+  "min_rotation_deg":  15.0,
+
+  "frame_stride":  50,
+  "min_keyframes": 30,
+
+  "cosmic_base_sampling":         "stride",
+  "cosmic_union_coverage_min":     0.3,
+  "cosmic_yaw_diff_min_deg":      30.0,
+  "cosmic_obj_vis_area_min":       0.005,
+  "cosmic_obj_vis_depth_pix_min":  50
+}

@@ -1,0 +1,21 @@
+{
+  "_comment": "Defaults for `python -m cli perceive`. labeler/prompt_file are only consulted when detector=='labeled-gdino' (or its 'gemini+gdino' alias). workers=null = torch.cuda.device_count(); 0 disables the multi-GPU pre-pass. n_votes / vote_temperature must match the values used at the label stage so the cache_tag (cache/labels/<spec>__voteN/) lines up. vote_strategy controls how the detector consumes the N runs.",
+
+  "detector":          "scannet-gt",
+  "segmenter":         "gt-mask",
+  "gdino_max_classes": 200,
+
+  "labeler":     "qwen3vl-235B",
+  "prompt_file": null,
+
+  "cache_root": "cache/perception",
+
+  "workers":               null,
+  "batch_frames":         48,
+  "prepass_min_frames":   40,
+  "compile_perception": false,
+
+  "n_votes":          1,
+  "vote_temperature": 0.7,
+  "vote_strategy":    "union"
+}

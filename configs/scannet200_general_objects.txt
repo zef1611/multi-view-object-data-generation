@@ -1,0 +1,118 @@
+# wall                          # structural
+chair
+# floor                         # structural
+table
+# door                          # structural (mostly architectural)
+couch
+cabinet
+shelf
+desk
+bed
+pillow
+sink
+picture
+window
+toilet
+monitor
+curtain
+book
+box
+refrigerator
+lamp
+towel
+clothes
+tv
+counter
+dresser
+plant
+# ceiling                       # structural
+bathtub
+keyboard
+printer
+blanket
+trash can
+stairs
+microwave
+stove
+shoe
+computer
+bottle
+bench
+washing machine
+mirror
+basket
+fan
+laptop
+shower
+paper towel dispenser
+oven
+rack
+plate
+piano
+suitcase
+# rail                          # structural
+radiator
+soap dispenser
+telephone
+clock
+guitar
+toilet paper holder
+speaker
+# column                        # structural
+bicycle
+ladder
+bathroom stall
+# shower wall                   # structural
+cup
+coffee maker
+dishwasher
+paper towel roll
+# mat                           # often floor-region
+toaster
+fireplace
+soap dish
+# doorframe                     # structural
+fire extinguisher
+ball
+water cooler
+tray
+# pillar                        # structural
+# ledge                         # structural
+mouse
+# furniture                     # too generic
+cart
+scale
+tissue box
+# light switch                  # built-in fixture
+# power outlet                  # built-in fixture
+# decoration                    # too generic
+sign
+projector
+vacuum cleaner
+candle
+plunger
+stuffed animal
+headphones
+broom
+range hood
+dustpan
+hair dryer
+# vent                          # built-in fixture
+# shower floor                  # structural
+mailbox
+bowl
+music stand
+divider
+# object                        # too generic
+# closet wall                   # structural
+dumbbell
+# stair rail                    # structural
+# tube                          # built-in fixture
+# structure                     # too generic
+fire alarm
+power strip
+calendar
+poster
+mattress
+bag
+board

@@ -1,0 +1,11 @@
+{
+  "_comment": "Frame-level lift of cross_point_correspondence; mirrors the tightened thresholds. min_visible_matches=1 ensures every emit has >=1 verified geometric correspondence.",
+  "overlap":                  [0.15, 0.30],
+  "viewpoint_shift_mode":     "and",
+  "min_rot_deg":              20.0,
+  "min_trans_m":              0.6,
+  "max_rot_deg":              100.0,
+  "min_visible_matches":      1,
+  "min_label_score":          0.25,
+  "min_tgt_mask_area_frac":   0.005
+}

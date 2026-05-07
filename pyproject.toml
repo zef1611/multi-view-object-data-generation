@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crosspoint-objects"
+version = "0.1.0"
+description = "Cross-view object correspondence generation (CrossPoint-378K plug-in)."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "MAIR lab" }]
+
+# Runtime invocation is via `python -m cli <subcommand>` and
+# `python -m viz --mode <name>`. No console_scripts on purpose — the
+# package is meant to be cloned and run from the repo root, not pip-installed.
+
+[tool.setuptools.packages.find]
+include = [
+  "cli*", "datasets*", "models*", "pipeline*", "viz*",
+]
+exclude = ["tests*", "CrossPoint*", "matterport3d-data-gen*", "outputs*", "wandb*"]

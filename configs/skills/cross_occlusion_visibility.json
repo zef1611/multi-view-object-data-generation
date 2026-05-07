@@ -1,0 +1,6 @@
+{
+  "_comment": "Published p10 for occlusion is ~2x the other tasks (ScanNet 120 vs 60, ScanNet++ 40 vs 30). Bonus adds that lift on top of the source floor.",
+  "min_frame_gap_bonus_by_source": {"scannet": 60, "scannet++": 20, "matterport": 0, "unknown": 0},
+  "overlap_min":           0.40,
+  "occluded_fraction_min": 0.15
+}

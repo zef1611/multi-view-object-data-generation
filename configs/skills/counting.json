@@ -1,0 +1,7 @@
+{
+  "overlap":         [0.15, 0.60],
+  "min_cat_count":   3,
+  "max_cat_count":   15,
+  "require_shared":  true,
+  "require_private": true
+}

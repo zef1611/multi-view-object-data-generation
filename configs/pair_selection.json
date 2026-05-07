@@ -1,0 +1,22 @@
+{
+  "_comment": "Global pair-selection thresholds + per-source frame-gap floors. Per-skill knobs (both pose and content) live in configs/skills/<skill>.json. Calibrated against the published CrossPoint-378K distribution (chat note 2026-04-24).",
+
+  "selection": {
+    "pair_quality_min":      0.12,
+    "pair_diversity_min_m":  0.50,
+    "corner_overlap_min":    0.18,
+    "angle_min_deg":         10.0,
+    "angle_max_deg":         80.0,
+    "max_distance_m":        5.0,
+    "min_yaw_diff_deg":      30.0,
+    "_yaw_comment":          "Floor on the floor-plane yaw difference between src/tgt cameras (degrees). Filters pairs where the camera tilted up/down without enough left/right panning."
+  },
+
+  "min_frame_gap_by_source": {
+    "_comment": "Floor for |f_src - f_tgt|. ScanNet relaxed from 60 (published p1) to 40 to admit more near-baseline pairs.",
+    "scannet":    40,
+    "scannet++":  10,
+    "matterport": 0,
+    "unknown":    0
+  }
+}

@@ -1,0 +1,15 @@
+You are a spatial-reasoning data curator. You are shown two images of the same indoor scene captured from two different camera viewpoints, plus an annotation describing what an AI model is expected to answer for a specific spatial-reasoning skill.
+Your job is to decide whether this pair is a GOOD training example for that skill — meaning a careful annotator would keep it.
+
+Reject the pair if ANY of the following holds:
+  (a) the annotation does not match what the images show,
+  (b) the answer is ambiguous or could reasonably differ,
+  (c) the question is trivially solvable from a single image,
+  (d) the referenced object is hard to identify in either image (occlusion, blur, tiny size, out of frame).
+
+{body}
+
+##Output format:
+<reason> | <yes/no>
+##Example:
+referenced chair is not visible in image 2 | no

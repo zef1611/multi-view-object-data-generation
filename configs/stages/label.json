@@ -1,0 +1,9 @@
+{
+  "_comment": "Defaults for `python -m cli label`. prompt_file=null falls back to configs/label_prompt.txt. n_votes>1 enables multi-vote inference (vllm-only) and persists each parsed run under cache/labels/<spec>__vote{N}/.",
+
+  "model": "qwen3vl-235B",
+  "prompt_file": null,
+  "vllm_concurrency": null,
+  "n_votes": 1,
+  "vote_temperature": 0.7
+}

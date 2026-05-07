@@ -1,0 +1,7 @@
+{
+  "overlap":                 [0.20, 0.70],
+  "min_objects":             3,
+  "min_margin_m":            0.5,
+  "mask_depth_coverage_min": 0.6,
+  "min_ref_visibility":      "both"
+}

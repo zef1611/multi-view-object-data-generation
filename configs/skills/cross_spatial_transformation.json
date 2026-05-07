@@ -1,0 +1,4 @@
+{
+  "min_frame_gap_bonus_by_source": {"scannet": 0, "scannet++": 0, "matterport": 0, "unknown": 0},
+  "angle_deg_min": 30.0
+}

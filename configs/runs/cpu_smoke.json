@@ -1,0 +1,27 @@
+{
+  "_comment": "CPU-only smoke preset: noop detector + noop segmenter, no filter, no labeler, no verifier. Matches what tests/test_pipeline_smoke.py does end-to-end. Useful for fast pipeline correctness checks.",
+
+  "adapter": "scannet",
+  "scenes_root": "/home/mila/l/leh/scratch/dataset/scannet_data/scans",
+  "out_root": "outputs/cpu_smoke",
+  "logs_dir": "logs",
+
+  "stages": {
+    "sample":    "configs/stages/sample.json",
+    "filter":    "configs/stages/filter.json",
+    "pair_gate": "configs/stages/pair_gate.json",
+    "label":     "configs/stages/label.json",
+    "perceive":  "configs/stages/perceive.json",
+    "match":     "configs/stages/match.json",
+    "verify":    "configs/stages/verify.json"
+  },
+
+  "stage_overrides": {
+    "perceive":  {"detector": "noop", "segmenter": "noop"},
+    "match":     {"detector": "noop", "segmenter": "noop"}
+  },
+
+  "filter":   "none",
+  "labeler":  "none",
+  "verifier": "none"
+}

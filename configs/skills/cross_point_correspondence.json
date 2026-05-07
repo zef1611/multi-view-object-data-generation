@@ -1,0 +1,11 @@
+{
+  "_comment": "Point-level cross-view matching. Tight overlap window + AND-gated viewpoint shift; min_visible_matches=1 ensures every emit has >=1 verified geometric correspondence.",
+  "overlap":                 [0.15, 0.30],
+  "viewpoint_shift_mode":    "and",
+  "min_rot_deg":             20.0,
+  "min_trans_m":             0.6,
+  "max_rot_deg":             100.0,
+  "min_visible_matches":     1,
+  "min_label_score":         0.25,
+  "mask_depth_coverage_min": 0.6
+}

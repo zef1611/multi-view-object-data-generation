@@ -1,0 +1,24 @@
+{
+  "_comment": "Defaults for `python -m cli match`. Knobs: depth_tol=0.15 absorbs ScanNet's ~5cm structured-light noise floor; iou_min=0.20 prioritizes precision (drop to 0.15 for more recall — sweep notes in cli/generate.py docstring). voxel_dedup is in metres.",
+
+  "detector":          "scannet-gt",
+  "segmenter":         "gt-mask",
+  "gdino_max_classes": 200,
+  "labeler":           "qwen3vl-235B",
+  "prompt_file":       null,
+  "cache_root":        "cache/perception",
+
+  "seed":                       42,
+  "seed_retries":                5,
+  "depth_tol":                   0.15,
+  "iou_min":                     0.20,
+  "voxel_dedup":                 0.05,
+  "emit_occlusion_negatives":  true,
+  "max_samples_per_scene":     200,
+  "max_det_per_frame":          15,
+
+  "viz_num":         8,
+  "wandb_project":   null,
+  "wandb_run_name":  null,
+  "wandb_max_rows":  20000
+}

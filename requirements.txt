@@ -1,0 +1,13 @@
+# Runtime deps for cropond_pointing.py + visualize_syn5.py
+# Install: conda activate crosspoint && pip install -r requirements.txt
+#
+# Versions match CrossPoint/requirements_eval.txt (the upstream-tested combo
+# for CroPond-7B / Qwen2.5-VL-7B inference via vLLM).
+
+vllm
+transformers
+qwen-vl-utils
+pillow
+matplotlib
+numpy
+google-generativeai

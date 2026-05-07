@@ -1,0 +1,33 @@
+{
+  "_comment": "Multi-vote labeler smoke: 235B labeler with n_votes=3, GDino re-runs per labeler vote, detections clustered + majority-voted (vote_strategy=per-run-detect). Otherwise mirrors qwen3vl_default.json. Cache lands at cache/labels/qwen3vl-235B__vote3/.",
+
+  "adapter": "scannet",
+  "scenes_root": "/home/mila/l/leh/scratch/dataset/scannet_data/scans",
+  "out_root": "outputs/qwen3vl_vote3",
+  "logs_dir": "logs",
+
+  "stages": {
+    "sample":    "configs/stages/sample.json",
+    "filter":    "configs/stages/filter.json",
+    "pair_gate": "configs/stages/pair_gate.json",
+    "label":     "configs/stages/label.json",
+    "perceive":  "configs/stages/perceive.json",
+    "match":     "configs/stages/match.json",
+    "verify":    "configs/stages/verify.json"
+  },
+
+  "stage_overrides": {
+    "sample":   {"sampling": "adaptive"},
+    "pair_gate":{"sampling": "adaptive"},
+    "filter":   {"model": "qwen3vl-235B", "vllm_concurrency": 8},
+    "label":    {"model": "qwen3vl-235B", "vllm_concurrency": 8,
+                 "n_votes": 3, "vote_temperature": 0.7},
+    "perceive": {"detector": "labeled-gdino", "segmenter": "sam2.1",
+                 "batch_frames": 4, "prepass_min_frames": 40,
+                 "n_votes": 3, "vote_temperature": 0.7,
+                 "vote_strategy": "per-run-detect"},
+    "match":    {"detector": "labeled-gdino", "segmenter": "sam2.1"}
+  },
+
+  "verifier": "none"
+}

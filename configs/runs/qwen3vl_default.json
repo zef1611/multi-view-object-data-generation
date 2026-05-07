@@ -1,0 +1,30 @@
+{
+  "_comment": "Slurm-runner default: adaptive sampling, labeled-gdino + sam2.1, 235B labeler + 235B filter. Mirrors what scripts/generate_qwen3vl.sh used to inline as flags. Override per-stage knobs via stage_overrides — copy this file and edit to swap models or thresholds.",
+
+  "adapter": "scannet",
+  "scenes_root": "/home/mila/l/leh/scratch/dataset/scannet_data/scans",
+  "out_root": "outputs/qwen3vl_default",
+  "logs_dir": "logs",
+
+  "stages": {
+    "sample":    "configs/stages/sample.json",
+    "filter":    "configs/stages/filter.json",
+    "pair_gate": "configs/stages/pair_gate.json",
+    "label":     "configs/stages/label.json",
+    "perceive":  "configs/stages/perceive.json",
+    "match":     "configs/stages/match.json",
+    "verify":    "configs/stages/verify.json"
+  },
+
+  "stage_overrides": {
+    "sample":   {"sampling": "adaptive"},
+    "pair_gate":{"sampling": "adaptive"},
+    "filter":   {"model": "qwen3vl-235B", "vllm_concurrency": 8},
+    "label":    {"model": "qwen3vl-235B", "vllm_concurrency": 8},
+    "perceive": {"detector": "labeled-gdino", "segmenter": "sam2.1",
+                 "batch_frames": 4, "prepass_min_frames": 40},
+    "match":    {"detector": "labeled-gdino", "segmenter": "sam2.1"}
+  },
+
+  "verifier": "none"
+}

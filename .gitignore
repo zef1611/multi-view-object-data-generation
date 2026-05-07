@@ -1,0 +1,85 @@
+# =============================================================================
+# Vendored / external
+# =============================================================================
+# Upstream reference repos (each has its own .git/), read-only
+CrossPoint/
+matterport3d-data-gen/
+
+# =============================================================================
+# Datasets and generated outputs
+# =============================================================================
+# Datasets (live under data/, symlinked or copied)
+data/
+
+# Generated outputs (`outputs` is typically a symlink to $SCRATCH/dataset/cross-points/)
+outputs/*
+out/
+docs/
+
+# =============================================================================
+# Caches — all model-tagged dirs under cache/ are derived state
+# =============================================================================
+# Blanket rule covers:
+#   cache/perception/<adapter>/<scene>/<cfg_hash>/*.pkl
+#   cache/labels/<model_name>/*.json     (registry names: qwen3vl-8B, qwen3vl-235B, gemini-2.5-flash, ...)
+#   cache/filter/<model_name>/*.json
+#   cache/qwen_filter/, cache/gemini_labels/, cache/qwen3_vl_labels/   (orphaned pre-registry, no longer written)
+#   cache/gemini_synonyms/   (deprecated SynonymClusterer)
+cache/
+JOURNAL.md 
+# =============================================================================
+# Per-run logs from generate_correspondences.py
+# =============================================================================
+# logs/<run-id>/pipeline.log     orchestrator + tagged [filter:..] / [labeler:..] entries
+# logs/<run-id>/vllm_<spec>.log  full vLLM stdout per launched spec
+# slurm/logs/                    sbatch stdout/stderr for slurm/*.sh jobs
+logs/
+slurm/logs/
+
+# =============================================================================
+# Loose correspondence outputs at the repo root (from accidental --out names)
+# =============================================================================
+# Production runs use --out-root <dir> which is already covered by `outputs`.
+# The patterns below catch one-off `--out foo.jsonl` runs that land in CWD.
+/*.jsonl
+
+# =============================================================================
+# Stray viz / scratch images at repo root
+# =============================================================================
+# Real viz lives under outputs/<run>/stage_1/{perception,pairs}/. The patterns
+# below cover ad-hoc PNGs generated during debugging or comparison.
+/grid_*.png
+/perception_*.png
+/compare_*.png
+/two_view_*.png
+/two_view_*.jpeg
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# =============================================================================
+# W&B local run artifacts (uploaded to cloud already)
+# =============================================================================
+wandb/
+
+# =============================================================================
+# Editor / OS / local secrets
+# =============================================================================
+.DS_Store
+.idea/
+.vscode/
+
+# Per-user Claude Code state. If you later commit shared `.claude/settings.json`
+# or slash commands, narrow this to the lock file only.
+.claude/scheduled_tasks.lock
+.claude/cache/
+
+# Secrets — read at runtime, must never be committed.
+gemini_api_key.txt
