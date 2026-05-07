@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for Claude Code working in this repo. The project has two active layers — most work happens in Layer 2 (correspondence generation).
+Guidance for Claude Code working in this repo. The project generates cross-view object correspondences from posed RGB-D scenes for VLM spatial-reasoning training data.
 
 ## Onboarding (read this first)
 
@@ -20,23 +20,10 @@ Common gotchas:
 - Same-spec filter+labeler stages **collapse** onto one vLLM server lifetime; mixing specs doubles the load time. Default config (`qwen3vl-235B` for both) loads the model once for an N-scene run.
 - `cli generate` writes per-run logs to `logs/<run-id>/pipeline.log` (orchestrator + per-frame entries) and `logs/<run-id>/vllm_<spec>.log` (raw server stdout). Check both when debugging a stuck run.
 
-## Repository layers
+## Repository scope
 
-1. **Layer 1 — CrossPoint-378K dataset visualizer** (`viz/dataset/crosspoint.py`).
-   Inspects the published **CrossPoint-378K** training dataset by overlaying
-   `point1`/`point2` (cross_*) or points parsed from prompts/assistant replies
-   (single_*) on the referenced images. Dataset root:
-   `/home/mila/l/leh/scratch/dataset/CrossPoint-378k`. Invoke via
-   `python -m viz --mode crosspoint`.
-
-2. **Layer 2 — correspondence generation pipeline** (`pipeline/` + `cli/generate.py`).
-   Generates new cross-view object correspondences from posed RGB-D scenes
-   (ScanNet today, Matterport / ScanNet++ stubs). Output JSONL plugs into
-   the CrossPoint-378K training schema. **This is where ~all current work happens.**
-
-3. **`CrossPoint/` subdirectory** — vendored upstream repo, **gitignored**, read-only reference.
-
-When the user says "the project", they almost always mean Layer 2.
+- **Correspondence generation pipeline** (`pipeline/` + `cli/generate.py`) — generates cross-view object correspondences from posed RGB-D scenes (ScanNet today, Matterport / ScanNet++ stubs). Output is per-skill JSONL. **All active work happens here.**
+- **`CrossPoint/` subdirectory** — vendored upstream repo, **gitignored**, read-only reference.
 
 ## Invocation
 
@@ -62,7 +49,7 @@ python -m cli filter    --in pairs.scored.jsonl --quality-filter qwen3vl-235B
 python -m cli label     --in pairs.scored.jsonl --labeler qwen3vl-235B
 python -m cli perceive  --in pairs.scored.jsonl --detector labeled-gdino --segmenter sam2.1
 python -m cli match     --in pairs.scored.jsonl --out-root outputs/<run>
-python -m cli verify    --in outputs/<run>/stage_1/anchor/pairs.jsonl --verifier qwen3vl-235B-pair
+python -m cli verify    --in outputs/<run>/stage_1/cross_point_correspondence/pairs.jsonl --verifier qwen3vl-235B-pair
 
 # Phase 2 (pair_gate) is pure pose/frustum gating — no vLLM, no quality
 # filter. Phase 3 (filter) runs on the union of frames-in-pairs only,
@@ -76,19 +63,17 @@ python -m cli balance --out-root outputs/run --verifier qwen3vl-235B-pair
 python -m cli qc ...
 
 # Visualization (single dispatcher: `python -m viz --mode <name> [args...]`)
-# Three tiers — see viz/__main__.py for the full taxonomy:
+# Two tiers — see viz/__main__.py:
 #   artifact viz   read-only over caches/jsonl
 #   diagnostic viz re-runs CPU-only pipeline pieces (no models loaded)
-#   dataset viz    over published datasets
 python -m viz --mode pairs --scene scene0093_00
 python -m viz --mode perception --scene scene0093_00 --num 6
 python -m viz --mode correspondences --jsonl outputs/.../correspondences.jsonl
 python -m viz --mode filter_rejections --scene s1 --scene s2 \
     --filter-spec qwen3vl-235B --out-dir outputs/<run>/viz_filter_rejections
-python -m viz --mode inspect_pair --out-root outputs/<run> --skill anchor
+python -m viz --mode inspect_pair --out-root outputs/<run> --skill cross_point_correspondence
 python -m viz --mode compare_sampling --root <a>:adaptive --root <b>:stride \
     --scenes scene0093_00 --out-dir outputs/<compare>
-python -m viz --mode crosspoint --num 8
 python -m viz --help                       # all modes
 ```
 
@@ -96,7 +81,7 @@ python -m viz --help                       # all modes
 
 `scripts/run_vlm_stage.sh <filter|label|verify> [...cli args]` is the unified resumable launcher for the three VLM stages. Same script under `bash` (interactive), `sbatch` (single job), or `sbatch --array=1-N%1` (auto-resume on preemption); per-frame/per-pair caches make every rerun a resume.
 
-## Layer 2 — current default pipeline
+## Current default pipeline
 
 ```
 adaptive frame sampling
@@ -200,9 +185,9 @@ The `(image_path, adapter, scene_id, frame_id)` tuple flows through every detect
 | `adaptive` | pose-thresholded keyframes (`--min-translation-m 0.20`, `--min-rotation-deg 15.0`) | paper-faithful — used by the `qwen3vl_default` / `paper_default` run presets |
 | `cosmic` | stride/adaptive base + COSMIC visibility-set rejection | object-level skills only |
 
-`cosmic` mode adds three GT-driven gates (`--cosmic-union-coverage-min`, `--cosmic-yaw-diff-min-deg`, area + depth visibility) and restricts emitted skills to `{cross_object_correspondence, anchor, counting, relative_distance, relative_direction}`.
+`cosmic` mode adds three GT-driven gates (`--cosmic-union-coverage-min`, `--cosmic-yaw-diff-min-deg`, area + depth visibility) and restricts emitted skills to `{cross_object_correspondence, relative_distance, relative_direction}`.
 
-## Canonical-label pipeline (Layer 2 invariant)
+## Canonical-label pipeline
 
 The labeler (Gemini or Qwen3-VL) emits per-detection `{"object", "canonical"}` pairs (e.g. `{"office chair", "chair"}`). Canonicals are persisted on every layer:
 
@@ -210,7 +195,7 @@ The labeler (Gemini or Qwen3-VL) emits per-detection `{"object", "canonical"}` p
 - `ObjectMask.canonical` — backfilled in `PerceptionCache.get()` via `detector.canonicalize_mask_label()` after segmentation. SAM stays label-agnostic.
 - `CorrespondenceRecord.{src_canonical, tgt_canonical}` — persisted in JSONL.
 
-Skill gates (`counting` especially) and visualizations use canonical-first identity. Falls back to `label` when canonical is empty (e.g. plain `gdino`).
+Skill gates and visualizations use canonical-first identity. Falls back to `label` when canonical is empty (e.g. plain `gdino`).
 
 The labeler prompt lives in `configs/label_prompt.txt` (editable; shared by all labeler backends). The prompt is **not** in the cache key — after editing it, bump the registry spec name or `rm -rf cache/labels/<spec>/` to force a recompute.
 
@@ -231,15 +216,12 @@ The labeler prompt lives in `configs/label_prompt.txt` (editable; shared by all 
 │   │     # the real implementations live under viz/layer2/
 │
 ├── viz/                              # python -m viz --mode <name>
-│   ├── __main__.py                   # dispatcher (3 tiers documented at top)
+│   ├── __main__.py                   # dispatcher
 │   ├── _args.py                      # add_scene_args / add_cache_args / add_scenes_root_arg
 │   ├── palette.py / overlays.py / cache_io.py   # shared rendering helpers
-│   ├── layer2/                       # pipeline-output viz (8 modes)
-│   │   └── correspondences.py / perception.py / pairs.py / gt.py / pair_match.py
-│   │     filter_rejections.py / compare_sampling.py / inspect_pair.py
-│   ├── dataset/                      # upstream/downstream dataset explorers
-│   │   └── crosspoint.py / crosspoint_wandb.py / syn5.py
-│   └── notebooks/visualize_crosspoint.ipynb
+│   └── layer2/                       # pipeline-output viz (8 modes)
+│       └── correspondences.py / perception.py / pairs.py / gt.py / pair_match.py
+│         filter_rejections.py / compare_sampling.py / inspect_pair.py
 │
 ├── pipeline/                         # core pipeline
 │   ├── pairs.py                      # select_pairs orchestrator + ViewPair
@@ -252,10 +234,10 @@ The labeler prompt lives in `configs/label_prompt.txt` (editable; shared by all 
 │   ├── label_matcher.py              # CLIP-text paraphrase matcher
 │   ├── sampling/                     # add a sampler = drop a file here
 │   │   └── __init__.py + base.py + adaptive.py + stride.py + cosmic.py
-│   └── skills/                       # 9 per-skill files + base.py
+│   └── skills/                       # 7 per-skill files + base.py
 │       └── __init__.py (SKILL_GATES + POSE_EVIDENCE registries) + base.py
 │           + cross_point_correspondence.py + cross_object_correspondence.py
-│           + anchor.py + counting.py + relative_distance.py + relative_direction.py
+│           + relative_distance.py + relative_direction.py
 │           + cross_spatial_transformation.py + cross_depth_variation.py + cross_occlusion_visibility.py
 │
 ├── models/
@@ -301,7 +283,7 @@ The labeler prompt lives in `configs/label_prompt.txt` (editable; shared by all 
 | segmenter | `models/segmenters/<name>.py` | subclass `Segmenter`; register in `cli/generate.py::make_segmenter` |
 | sampling strategy | `pipeline/sampling/<name>.py` | add to `pipeline/sampling/__init__.py::SAMPLERS` |
 | skill gate | `pipeline/skills/<name>.py` | implement `gate_<name>`, register in `pipeline/skills/__init__.py::SKILL_GATES`, add `configs/skills/<name>.json` (will be picked up automatically by `load_skills_config`) |
-| viz mode | `viz/layer2/<name>.py` or `viz/dataset/<name>.py` | call `add_scene_args` / `add_cache_args` / `add_scenes_root_arg` from `viz._args` for the standard flags; add to `viz/__main__.py::LAYER2` (or `DATASET`). All viz modes share `--cache-root` (parent of `perception/` / `filter/` / ...), `--adapter`, `--scenes-root`. Modes that load detector/segmenter belong in `cli/`, not viz. |
+| viz mode | `viz/layer2/<name>.py` | call `add_scene_args` / `add_cache_args` / `add_scenes_root_arg` from `viz._args` for the standard flags; add to `viz/__main__.py::LAYER2`. All viz modes share `--cache-root` (parent of `perception/` / `filter/` / ...), `--adapter`, `--scenes-root`. Modes that load detector/segmenter belong in `cli/`, not viz. |
 | CLI subcommand | `cli/<name>.py` | add to `cli/__main__.py::COMMANDS`. CLI is for compute / pipeline ops (generate, balance, qc, debug_pipeline, sample/filter/pair_gate/label/perceive/match/verify); pure-viz commands belong under `viz/layer2/`. Per-stage runners route inputs through `cli/_io.py::load_inputs` and call a single `stage_*` body in `pipeline/stages.py` so `cli generate` can delegate to the same code. |
 
 ## Conventions

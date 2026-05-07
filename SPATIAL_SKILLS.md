@@ -1,6 +1,6 @@
 # Spatial Skills — pair-selection guide
 
-This document lists the nine spatial-reasoning skills used to route
+This document lists the seven spatial-reasoning skills used to route
 CrossPoint-style frame pairs into training data, and what makes a frame
 pair "good" for each one. It also records where each skill's gate runs
 in the pipeline (pose-stage vs. content-stage) and the threshold keys in
@@ -31,16 +31,13 @@ JSONL per skill under `out_root/stage_1/<skill>/correspondences.jsonl`
 | ------------------------------ | ----------- | --------------------------------------------------------------------------- |
 | `cross_point_correspondence`   | content     | Given a marked point in view 1, where is the same real-world spot in view 2? |
 | `cross_object_correspondence`  | content     | Point to an object in view 2 that also appears in view 1 (frame-level).      |
-| `anchor`                       | content     | Which object(s) appear in both views?                                       |
-| `counting`                     | content     | How many instances of category X across both views (deduped)?               |
 | `relative_distance`            | content     | Which target object is farthest from a reference?                           |
 | `relative_direction`           | content     | In what direction is object X from the other camera's viewpoint?            |
 | `cross_occlusion_visibility`   | pose        | Is object X visible from view 2 or occluded?                                |
 | `cross_depth_variation`        | pose        | Does the same object appear closer/farther across the two views?            |
 | `cross_spatial_transformation` | pose        | How did the object's 2D footprint change under the viewpoint shift?         |
 
-Context: `cross_point_correspondence` (the point-level task) is the
-largest category in CrossPoint-378K (217,773 / 378,765 samples ≈ 57%).
+Context: `cross_point_correspondence` is the point-level task.
 `cross_object_correspondence` is the frame-level lift: instead of asking
 "find *this pixel* in the other view," it asks the model to itself
 identify what is shared and point to an object that appears in both.
@@ -98,33 +95,6 @@ point inside a tgt mask that corresponds to a src mask in the pair.
   diversity prune, but worth asserting: if view 2 is ~identical to view
   1, every visible object is trivially shared and the frame-level task
   collapses to "point to any salient object."
-
-### Anchor — "which object appears in both?"
-- **Strong appearance shift on shared objects** — scale ratio ≥ 2× OR
-  aspect-ratio flip between src/tgt bboxes of the same object. If the
-  object looks nearly identical across views, the task is trivial.
-- **2–5 shared objects**, not 20. Too few → forced answer; too many →
-  under-specified question.
-- **Overlap 0.25–0.70** — outside this band the "common object"
-  question is either trivial or undefined.
-- **Distinct categories among shared objects** so the answer has a
-  unique linguistic handle (avoid "the chair" when there are four chairs).
-- **Avoid near-duplicate viewpoints** — rotation ≥ 35° or baseline ≥ 0.6 m.
-
-### Counting — "how many Xs total?"
-- **A single category with 3–15 total instances** across the union.
-  Fewer is uninteresting, more is unreliable (detector noise compounds).
-- **Both shared and private instances** — the point of cross-view
-  counting is de-duplication; if all instances are shared (or all
-  private) it collapses to single-view counting.
-- **Distinguishable instances**, not a tight cluster (e.g. 10 touching
-  books in a shelf → one mask, one miscount). Require inter-centroid
-  distance ≥ some fraction of bbox diagonal.
-- **Consistent category labels across views** (same GD label); label
-  flips on matched instances indicate detector confusion — reject.
-- **Moderate occlusion** — partial occlusion is fine and makes the task
-  non-trivial, but a shared instance visible in only one view should
-  still be confidently detected in the other.
 
 ### Relative Distance — "farthest from the reference"
 - **≥ 3 matched objects with valid 3D world points**, and at least one
@@ -256,15 +226,6 @@ Content-stage skills (consumed by the `gate_<skill>` functions in
   "min_rot_deg": 20.0, "min_trans_m": 0.6, "max_rot_deg": 100.0,
   "min_visible_matches": 1, "min_label_score": 0.25,
   "min_tgt_mask_area_frac": 0.005 }
-
-// configs/skills/anchor.json
-{ "overlap": [0.25, 0.70], "min_visible_matches": 1,
-  "scale_ratio_excl": [0.5, 2.0],
-  "min_rot_deg": 35.0, "min_trans_m": 0.6 }
-
-// configs/skills/counting.json
-{ "overlap": [0.15, 0.60], "min_cat_count": 3, "max_cat_count": 15,
-  "require_shared": true, "require_private": true }
 
 // configs/skills/relative_distance.json
 { "overlap": [0.20, 0.70], "min_objects": 3, "min_margin_m": 0.5,

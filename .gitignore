@@ -15,6 +15,7 @@ data/
 outputs/*
 out/
 docs/
+outputs
 
 # =============================================================================
 # Caches — all model-tagged dirs under cache/ are derived state

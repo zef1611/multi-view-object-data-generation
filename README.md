@@ -1,6 +1,6 @@
 # CrossPoint-Objects
 
-Tools for generating, visualizing, and quality-controlling **cross-view object-level correspondences** on indoor-scene datasets (ScanNet today; Matterport / ScanNet++ stubs). Output uses the same JSONL schema as [CrossPoint-378K / CrossPoint-Bench](https://github.com/WangYipu2002/CrossPoint), so it plugs directly into CroPond-7B / Qwen2.5-VL training and evaluation.
+Tools for generating, visualizing, and quality-controlling **cross-view object-level correspondences** on indoor-scene datasets (ScanNet today; Matterport / ScanNet++ stubs).
 
 Invocation is always `python -m cli <command>` (generation, debugging) or `python -m viz --mode <name>` (visualization). No editable install required — clone, activate the env, and run.
 
@@ -24,8 +24,6 @@ Datasets expected on disk (override with `--scenes-root` etc.):
 | Dataset | Default path |
 |---|---|
 | ScanNet scans | `/home/mila/l/leh/scratch/dataset/scannet_data/scans/<scene_id>/` |
-| CrossPoint-378K | `/home/mila/l/leh/scratch/dataset/CrossPoint-378k/` |
-| Infinigen `syn_5_types` | `/network/scratch/q/qian.yang/infinigen/.../syn_5_types/` |
 
 ---
 
@@ -94,7 +92,7 @@ Common axes you'll want to ablate:
 
 ---
 
-## Layer 2 — Generate correspondences from RGB-D + pose
+## Generate correspondences from RGB-D + pose
 
 End-to-end: **frame sampling → per-frame detection + segmentation (cached) → geometric src→tgt matching via depth reprojection → 3D voxel-dedup → JSONL per task.**
 
@@ -123,7 +121,7 @@ Default knobs (loaded from `configs/stages/*.json`; CLI flags override):
 | `iou_min` | `stages/match.json` | `0.20` | match-stage minimum src→tgt mask reprojection IoU |
 | `emit_occlusion_negatives` | `stages/match.json` | `true` | emit occluded matches as NEG records (`--no-emit-occlusion-negatives` to disable) |
 
-Output JSONL has 9 per-skill subfolders, each with `correspondences.pos.jsonl`/`correspondences.neg.jsonl`/`pairs.jsonl`, plus `_all/` aggregate. The default config requires GPU only for the Qwen filter; pass `--quality-filter none` to run end-to-end on CPU.
+Output JSONL has 7 per-skill subfolders, each with `correspondences.pos.jsonl`/`correspondences.neg.jsonl`/`pairs.jsonl`, plus `_all/` aggregate. The default config requires GPU only for the Qwen filter; pass `--quality-filter none` to run end-to-end on CPU.
 
 ### Detector / segmenter matrix
 
@@ -289,8 +287,6 @@ End-to-end stages applied by `pipeline/pairs.py::select_pairs` and the per-skill
     • cross_point_correspondence / cross_object_correspondence:
         overlap ∈ [0.15, 0.30],   viewpoint_shift_mode = "and",
         rot ≥ 20°  AND  trans ≥ 0.6 m,    rot ≤ 100°
-    • anchor:      overlap ∈ [0.25, 0.70],  scale_ratio_excl = [0.5, 2.0]
-    • counting:    overlap ∈ [0.15, 0.60],  unique_total ∈ [3, 15]
     • relative_distance:  ≥ 3 candidates, margin ≥ 0.5 m
     • relative_direction: rot ≥ 20°, trans ≥ 1.0 m, az_sep ≥ 30°
                           │
@@ -339,7 +335,7 @@ python -m cli match     --in outputs/scene0093_00/pairs.scored.jsonl \
     --out-root outputs/run
 
 # 7. Pair verifier (GPU) → cache/verifier/... + <input>.verified.jsonl
-python -m cli verify    --in outputs/run/stage_1/anchor/pairs.jsonl \
+python -m cli verify    --in outputs/run/stage_1/cross_point_correspondence/pairs.jsonl \
     --verifier qwen3vl-235B-pair --verify-concurrency 8
 ```
 
@@ -436,7 +432,7 @@ The labeler (Gemini or Qwen3-VL) emits `{"object", "canonical"}` pairs per detec
 - `ObjectMask.canonical` — backfilled in `PerceptionCache.get()` via `detector.canonicalize_mask_label()` post-SAM.
 - `CorrespondenceRecord.{src_canonical, tgt_canonical}` — persisted in JSONL.
 
-Skill gates (`counting` especially) match by canonical, not by raw label string. The prompt is editable: `configs/label_prompt.txt` (or override via `configs/stages/label.json::prompt_file`). The same prompt is used by both labeler backends — only the inference server differs. **Note:** the cache key does not include a prompt hash, so editing the prompt does **not** auto-invalidate; either bump the registry spec name or `rm -rf cache/labels/<spec>/` after a prompt change. Same rule applies to any knob edit in `configs/stages/*.json` that affects perception caches.
+Skill gates match by canonical, not by raw label string. The prompt is editable: `configs/label_prompt.txt` (or override via `configs/stages/label.json::prompt_file`). The same prompt is used by both labeler backends — only the inference server differs. **Note:** the cache key does not include a prompt hash, so editing the prompt does **not** auto-invalidate; either bump the registry spec name or `rm -rf cache/labels/<spec>/` after a prompt change. Same rule applies to any knob edit in `configs/stages/*.json` that affects perception caches.
 
 ### Output layout
 
@@ -448,7 +444,7 @@ Skill gates (`counting` especially) match by canonical, not by raw label string.
 {root}/stage_1/_all/correspondences.rejections.jsonl   # per-frame/mask rejection log
 ```
 
-`<skill>` ∈ {`cross_point_correspondence`, `cross_object_correspondence`, `cross_depth_variation`, `cross_occlusion_visibility`, `cross_spatial_transformation`, `anchor`, `counting`, `relative_distance`, `relative_direction`}.
+`<skill>` ∈ {`cross_point_correspondence`, `cross_object_correspondence`, `cross_depth_variation`, `cross_occlusion_visibility`, `cross_spatial_transformation`, `relative_distance`, `relative_direction`}.
 
 Per-frame and per-pair caches (model-tagged; see `tests/test_cache_keys.py` for the pinned layout):
 
@@ -470,7 +466,7 @@ All hyperparams live in `configs/`. Three layers:
 | File / dir | Owns | Loaded by |
 |---|---|---|
 | `configs/pair_selection.json` | `selection` floors + `min_frame_gap_by_source` | `pipeline.config.load_skills_config()` |
-| `configs/skills/<skill>.json` | per-skill gate (one file per content + pose skill, 9 total) | `pipeline.config.load_skills_config()` |
+| `configs/skills/<skill>.json` | per-skill gate (one file per content + pose skill, 7 total) | `pipeline.config.load_skills_config()` |
 | `configs/stages/<stage>.json` | per-stage knob defaults (sampler thresholds, models, concurrency, geometric-match knobs, perception batching, viz/W&B) | `pipeline.config.load_stage_config(stage)` |
 | `configs/runs/<preset>.json` | top-level preset that picks per-stage configs and applies `stage_overrides` (deep-merged) | `pipeline.config.load_run_config(path)` |
 
@@ -491,22 +487,6 @@ Plus the labeler prompt at `configs/label_prompt.txt` and the GDino vocab at `co
 - `configs/runs/cpu_smoke.json` — noop + noop + no filter + no labeler + no verifier; CPU-only.
 
 To swap models in a slurm run, copy the preset and edit `stage_overrides.label.model` (or `.filter.model`, `.verify.model`); the slurm runner is a thin wrapper around `--run-config $RUN_CONFIG`.
-
----
-
-## Layer 1 — Inspect CrossPoint-378K
-
-`viz/dataset/crosspoint.py` overlays `point1`/`point2` (cross_*) or prompt-parsed points (single_*) on referenced images.
-
-```bash
-python -m viz --mode crosspoint                                      # random sample
-python -m viz --mode crosspoint --type cross_correspondence --num 6
-python -m viz --mode crosspoint --index 42 --save out.png
-```
-
-Supported `--type` values: `single_spatial_understanding`, `single_fine_grounding`, `cross_correspondence`, `cross_spatial_transformation`, `cross_depth_variation`, `cross_occlusion_visibility`.
-
-A Jupyter version (`viz/notebooks/visualize_crosspoint.ipynb`) and W&B uploader (`python -m viz --mode crosspoint_wandb`) mirror the same logic.
 
 ---
 
@@ -547,13 +527,10 @@ Subclass `BaseSceneAdapter` in `datasets/`, implement `list_frames` + `load_fram
 │
 ├── viz/                    # python -m viz --mode <name> dispatch
 │   ├── palette.py / overlays.py / cache_io.py    # shared helpers
-│   ├── layer2/             # pipeline-output viz
-│   │   └── correspondences.py / perception.py / pairs.py / gt.py / pair_match.py
-│   ├── dataset/            # upstream/downstream dataset explorers
-│   │   └── crosspoint.py / crosspoint_wandb.py / syn5.py
-│   └── notebooks/visualize_crosspoint.ipynb
+│   └── layer2/             # pipeline-output viz
+│       └── correspondences.py / perception.py / pairs.py / gt.py / pair_match.py
 │
-├── pipeline/               # core pipeline (was crosspoint_gen/core/)
+├── pipeline/               # core pipeline
 │   ├── pairs.py            # select_pairs orchestrator + ViewPair
 │   ├── pairs_io.py         # ScoredPair + read/write_scored_pairs (Phase 3 artifact)
 │   ├── stages.py           # stage_filter / stage_label / stage_pair_gate / stage_perceive / stage_match / stage_verify
@@ -561,9 +538,9 @@ Subclass `BaseSceneAdapter` in `datasets/`, implement `list_frames` + `load_fram
 │   ├── emit.py / manifest.py / config.py / wandb_uploader.py
 │   ├── cosmic.py / label_blocklist.py / label_matcher.py
 │   ├── sampling/           # one file per strategy: adaptive, stride, cosmic
-│   └── skills/             # one file per skill (9 of them) + base.py
+│   └── skills/             # one file per skill (7 of them) + base.py
 │
-├── models/                 # role subfolders (was crosspoint_gen/models/)
+├── models/                 # role subfolders
 │   ├── registry.py / base.py / _vlm_base.py / _frame_ref.py / _json_salvage.py / noop.py
 │   ├── labelers/           # gemini.py + qwen3vl.py
 │   ├── filters/qwen.py
@@ -572,13 +549,13 @@ Subclass `BaseSceneAdapter` in `datasets/`, implement `list_frames` + `load_fram
 │   ├── segmenters/         # sam21.py + sam3.py + gt.py
 │   └── gt/                 # base.py + scannet.py + scannet_gdino.py
 │
-├── datasets/               # was crosspoint_gen/adapters/
+├── datasets/
 │   └── base.py + scannet.py + matterport.py + scannetpp.py
 │
 ├── configs/                # see "Configuration" section above
 │   ├── pair_selection.json
 │   ├── stages/<stage>.json # 7 files: sample, filter, pair_gate, label, perceive, match, verify
-│   ├── skills/<skill>.json # 9 files (one per content + pose skill)
+│   ├── skills/<skill>.json # 7 files (one per content + pose skill)
 │   ├── runs/<preset>.json  # qwen3vl_default, paper_default, cpu_smoke
 │   ├── label_prompt.txt
 │   └── scannet200_general_objects.txt
