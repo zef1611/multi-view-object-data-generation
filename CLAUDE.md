@@ -7,14 +7,14 @@ Guidance for Claude Code working in this repo. The project generates cross-view 
 If you're picking this repo up cold:
 
 1. **Verify the env.** `pytest tests/` (66 tests, ~70s, no GPU/dataset needed) → then `python -m cli generate --run-config configs/runs/cpu_smoke.json --scene scene0093_00 --out-root outputs/smoke_cpu`. A non-empty `outputs/smoke_cpu/stage_1/_all/correspondences.jsonl` means the full pipeline runs end-to-end on CPU.
-2. **Pick a starting preset, don't write CLI flags from scratch.** `configs/runs/{cpu_smoke, qwen3vl_default, paper_default, qwen3vl_vote3}.json` cover the common configurations. Copy → edit `stage_overrides` → run with `--run-config <path>`. CLI flags still win for one-off ablations.
+2. **Pick a starting preset, don't write CLI flags from scratch.** `configs/runs/{default, qwen3vl_default, qwen3vl_vote3, cpu_smoke}.json` cover the common configurations (`default.json` is the production end-to-end run with the verifier enabled). Copy → edit `stage_overrides` → run with `--run-config <path>`. CLI flags still win for one-off ablations.
 3. **Read the input/output contract before changing a stage.** Each stage in `pipeline/stages.py` reads / writes one of three artifact shapes (`frames.json` | `pairs.scored.jsonl` | `<out_root>/<skill>/pairs.jsonl`); they auto-detect via `cli/_io.py::load_inputs`. Round-trip invariants are pinned by `tests/test_pairs_io.py`, `tests/test_io_loader.py`, `tests/test_chain_e2e.py`. If you break one, those tests will say so.
 4. **Caches are king.** Every VLM verdict and every perception result is on disk under `cache/{labels,filter,perception,verifier}/<spec>/<adapter>/<scene>/...`. Two runs with the same models on the same scenes share every cache hit — threshold sweeps that don't change models cost only the match/emit phase. To force a recompute, bump the registry spec name in `models/registry.py` or `rm -rf cache/<ns>/<spec>/`. **Editing JSON config values does not invalidate caches.**
 5. **All artifacts go under `outputs/`, never `/tmp/`.** Smoke runs, scratch viz, log dirs — everything (see Conventions below).
 6. **Don't reach for new abstractions.** Adding a labeler / detector / skill / sampler / dataset is one file + one registry line, see "Adding a new …" table below. The pipeline is intentionally stage-shaped — a new behavior almost always belongs inside one existing `stage_*` body, not a new orchestrator.
 
 Common gotchas:
-- The default `--sampling` is `stride` (`configs/stages/sample.json`); the `qwen3vl_default` and `paper_default` presets override it to `adaptive`. Check both before debugging "wrong" frame counts.
+- The bare-stage `--sampling` is `stride` (`configs/stages/sample.json`); the `default` and `qwen3vl_default` run presets override it to `adaptive`. Check both before debugging "wrong" frame counts.
 - `cli pair_gate` is pure pose/frustum gating — it does **not** run the quality filter. The filter only runs in Phase 3 of `cli generate` (or as the standalone `cli filter` stage).
 - Verifier specs need `images_per_prompt>=2` (sends src+tgt in one prompt). Don't pair a `*-pair` spec with a single-image cache namespace.
 - Same-spec filter+labeler stages **collapse** onto one vLLM server lifetime; mixing specs doubles the load time. Default config (`qwen3vl-235B` for both) loads the model once for an N-scene run.
@@ -30,11 +30,20 @@ Common gotchas:
 ```bash
 # End-to-end generation pipeline (chains every stage internally; one
 # vLLM server lifetime per VLM stage spans the whole batch — so a 50-scene
-# run loads each model exactly once, not 50 times).
-python -m cli generate --scene scene0093_00 --detector scannet-gt --segmenter gt-mask
-python -m cli generate --scene s1 --scene s2 --detector labeled-gdino \
-    --segmenter sam2.1 --labeler qwen3vl-235B --quality-filter qwen3vl-235B \
-    --verifier qwen3vl-235B-pair  # filter+labeler collapse to one server, then verifier
+# run loads each model exactly once, not 50 times). Production runs
+# always pick a preset:
+python -m cli generate --run-config configs/runs/default.json \
+    --scene scene0093_00 --out-root outputs/run
+python -m cli generate --run-config configs/runs/default.json \
+    --all-scenes --out-root outputs/full
+
+# Ablation over raw flags (no preset). Filter+labeler collapse onto one
+# vLLM server lifetime when same-spec, then GDino+SAM, then verifier.
+python -m cli generate --scene s1 --scene s2 \
+    --sampling adaptive \
+    --detector labeled-gdino --segmenter sam2.1 \
+    --labeler qwen3vl-235B --quality-filter qwen3vl-235B \
+    --verifier qwen3vl-235B-pair --out-root outputs/ablation
 python -m cli generate --help              # full flag list
 
 # Per-stage CLIs — every Phase has its own runner, sharing helpers in
@@ -87,25 +96,25 @@ python -m viz --help                       # all modes
 adaptive frame sampling
   └─► pair-gate (pose pre-filter + quality gate + diversity prune + skill tags)
        └─► per-frame quality filter (frames-in-pairs only) → drops unusable pairs
-            └─► labeler (frames-in-pairs only)
-                 └─► ScanNet GT instance bbox  (= "scannet-gt" detector)
-                      └─► GT mask passthrough   (= "gt-mask" segmenter)
+            └─► labeler (frames-in-pairs only) → {object, canonical} per detection
+                 └─► GroundingDINO re-grounds  (= "labeled-gdino" detector)
+                      └─► SAM 2.1 mask refinement  (= "sam2.1" segmenter)
                            └─► geometric matching → 3D voxel dedup → JSONL
                                 └─► optional pair verifier
 ```
 
-Stage defaults (from `configs/stages/*.json`): `sampling=stride`, `detector=scannet-gt`, `segmenter=gt-mask`, `filter=qwen3vl-235B`, `labeler=qwen3vl-235B`, `verifier=qwen3vl-235B-pair`. Swap labelers/filters/verifiers via registry name (`--labeler` / `--quality-filter` / `--verifier`) — `qwen3vl-8B` / `qwen3vl-8B-pair` for cheaper single-GPU runs, `gemini-2.5-flash` / `gemini-2.5-pro` for the API path. Run presets in `configs/runs/*.json` override these per stage (e.g. `qwen3vl_default` flips sampling to `adaptive`).
+Operational defaults (set by `configs/runs/default.json` — the production preset — and its slimmer sibling `qwen3vl_default.json`, which are what production runs always pass via `--run-config`): `sampling=adaptive`, `detector=labeled-gdino`, `segmenter=sam2.1`, `filter=qwen3vl-235B`, `labeler=qwen3vl-235B`, `verifier=qwen3vl-235B-pair`. Swap labelers/filters/verifiers via registry name (`--labeler` / `--quality-filter` / `--verifier`) — `qwen3vl-8B` / `qwen3vl-8B-pair` for cheaper single-GPU runs, `gemini-2.5-flash` / `gemini-2.5-pro` for the API path.
 
-Pass `--quality-filter none` (and skip `--labeler` / `--verifier`) for a fully **CPU-only** run on `scannet-gt + gt-mask` — no GPU and no API key required, ~14s per 40-frame scene.
+(Bare `cli generate` without `--run-config` falls back to the `configs/stages/*.json` per-stage stubs — `stride` sampling, `scannet-gt` + `gt-mask`, `qwen3vl-235B` filter+labeler. That fallback path is fine for one-off ablations but not the production default.)
+
+Pass `--detector scannet-gt --segmenter gt-mask --quality-filter none` (and skip `--labeler` / `--verifier`) for a fully **CPU-only** smoke run — no GPU and no API key required, ~14s per 40-frame scene.
 
 ### Detector matrix
 
 | `--detector` | Identity source | Box source | Speed/40fr | When to use |
 |---|---|---|---|---|
-| **`scannet-gt`** *(default)* | GT instance ID | GT mask bbox | ~14s | fastest, deterministic, ScanNet-only |
-| `scannet-gt-label+gdino` | GT instance ID via mask-IoU | GDino re-grounds | ~50s | clean image-aligned bboxes + GT identity |
-| `labeled-gdino` | VLM canonical (set via `--labeler`) | GDino re-grounds | depends on labeler | rich Q&A wording, off-ScanNet portable |
-| `gdino+scannet200` | none (closed vocab) | GDino, 96 classes | ~22s | label-driven recall only, no GT |
+| **`labeled-gdino`** *(default)* | VLM canonical (set via `--labeler`) | GDino re-grounds | depends on labeler | rich Q&A wording, off-ScanNet portable |
+| `scannet-gt` | GT instance ID | GT mask bbox | ~14s | CPU-only smoke, deterministic, ScanNet-only |
 | `gdino` | none | GDino DEFAULT_CLASSES | ~22s | legacy fallback |
 | `noop` | — | 3×3 synthetic grid | <1s | smoke tests |
 
@@ -172,8 +181,8 @@ The `(image_path, adapter, scene_id, frame_id)` tuple flows through every detect
 
 | `--segmenter` | Output mask | Speed | When to use |
 |---|---|---|---|
-| **`gt-mask`** *(default)* | raw mesh-projected GT | <1s/frame | deterministic, no model |
-| `sam2.1` | clean SAM-refined | ~1.5s/frame | clean edges, image-aligned |
+| **`sam2.1`** *(default)* | clean SAM-refined | ~1.5s/frame | clean edges, image-aligned |
+| `gt-mask` | raw mesh-projected GT | <1s/frame | CPU-only smoke, deterministic, no model |
 | `sam3` | clean SAM3 | ~2s/frame | newer SAM variant |
 | `noop` | bbox-as-mask | <1s | smoke tests |
 
@@ -182,7 +191,7 @@ The `(image_path, adapter, scene_id, frame_id)` tuple flows through every detect
 | `--sampling` | Mechanism | When to use |
 |---|---|---|
 | **`stride`** *(stage default)* | every Nth frame (`--frame-stride 50`) | regular spacing; default in `configs/stages/sample.json` |
-| `adaptive` | pose-thresholded keyframes (`--min-translation-m 0.20`, `--min-rotation-deg 15.0`) | paper-faithful — used by the `qwen3vl_default` / `paper_default` run presets |
+| `adaptive` | pose-thresholded keyframes (`--min-translation-m 0.20`, `--min-rotation-deg 15.0`) | used by the `default` / `qwen3vl_default` run presets |
 | `cosmic` | stride/adaptive base + COSMIC visibility-set rejection | object-level skills only |
 
 `cosmic` mode adds three GT-driven gates (`--cosmic-union-coverage-min`, `--cosmic-yaw-diff-min-deg`, area + depth visibility) and restricts emitted skills to `{cross_object_correspondence, relative_distance, relative_direction}`.
@@ -191,7 +200,7 @@ The `(image_path, adapter, scene_id, frame_id)` tuple flows through every detect
 
 The labeler (Gemini or Qwen3-VL) emits per-detection `{"object", "canonical"}` pairs (e.g. `{"office chair", "chair"}`). Canonicals are persisted on every layer:
 
-- `Detection.canonical` — set by detectors that know one (`labeled-gdino`, `scannet-gt`, `scannet-gt-label+gdino`).
+- `Detection.canonical` — set by detectors that know one (`labeled-gdino`, `scannet-gt`).
 - `ObjectMask.canonical` — backfilled in `PerceptionCache.get()` via `detector.canonicalize_mask_label()` after segmentation. SAM stays label-agnostic.
 - `CorrespondenceRecord.{src_canonical, tgt_canonical}` — persisted in JSONL.
 
@@ -260,7 +269,7 @@ The labeler prompt lives in `configs/label_prompt.txt` (editable; shared by all 
 │   ├── pair_selection.json           # selection floors + per-source frame-gap bonuses
 │   ├── stages/<stage>.json           # per-stage knob defaults (sample/filter/pair_gate/label/perceive/match/verify)
 │   ├── skills/<skill>.json           # per-skill gates (one file per content + pose skill)
-│   ├── runs/<preset>.json            # top-level run presets (qwen3vl_default / paper_default / qwen3vl_vote3 / cpu_smoke)
+│   ├── runs/<preset>.json            # top-level run presets (default / qwen3vl_default / qwen3vl_vote3 / cpu_smoke)
 │   ├── label_prompt.txt              # labeler prompt
 │   └── scannet200_general_objects.txt
 ├── scripts/

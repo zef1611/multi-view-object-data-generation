@@ -1,9 +1,9 @@
 {
-  "_comment": "Paper-faithful preset: adaptive sampling + labeled-gdino + sam2.1 + 235B for filter/labeler/verifier. Matches the configuration described in CLAUDE.md's 'Layer 2 — current default pipeline' section, with verifier enabled.",
+  "_comment": "Default preset: adaptive sampling + labeled-gdino + sam2.1 + 235B for filter/labeler/verifier. Production end-to-end configuration with the verifier enabled.",
 
   "adapter": "scannet",
   "scenes_root": "/home/mila/l/leh/scratch/dataset/scannet_data/scans",
-  "out_root": "outputs/paper_default",
+  "out_root": "outputs/default",
   "logs_dir": "logs",
 
   "stages": {
